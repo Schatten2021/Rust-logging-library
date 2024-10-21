@@ -1,7 +1,8 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::any::Any;
 #[cfg(feature = "coloured_output")]
 use ansi_term::Color;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
 
 static ROOT: OnceLock<Mutex<Logger>> = OnceLock::new();
 
@@ -26,36 +27,37 @@ pub struct Logger {
     children: HashMap<String, Arc<Mutex<Logger>>>,
 }
 impl Logger {
-    pub fn new(name: &String) -> Arc<Mutex<Logger>> {
+    pub fn new(name: impl ToString) -> Arc<Mutex<Logger>> {
         let root = Logger::get_root();
         let mut root_lock = root.lock().unwrap();
-        let child = root_lock.get_child(name.clone());
+        let child = root_lock.get_child(name.to_string());
         child
     }
-    pub fn log(&self, msg: String, level: Level) {
+    pub fn log(&self, msg: impl ToString, level: Level) {
         if level < self.level {
             return;
         }
+        let message = msg.to_string();
         for handler in &self.handlers {
-            handler.lock().unwrap().log(level.clone(), msg.clone(), self)
+            handler.lock().unwrap().log(level.clone(), message.clone(), self)
         }
     }
-    pub fn debug(&self, msg: String) {
+    pub fn debug(&self, msg: impl ToString) {
         self.log(msg, Level::DEBUG)
     }
-    pub fn info(&self, msg: String) {
+    pub fn info(&self, msg: impl ToString) {
         self.log(msg, Level::INFO)
     }
-    pub fn success(&self, msg: String) {
+    pub fn success(&self, msg: impl ToString) {
         self.log(msg, Level::SUCCESS)
     }
-    pub fn error(&self, msg: String) {
+    pub fn error(&self, msg: impl ToString) {
         self.log(msg, Level::ERROR)
     }
-    pub fn critical(&self, msg: String) {
+    pub fn critical(&self, msg: impl ToString) {
         self.log(msg, Level::CRITICAL)
     }
-    pub fn fatal(&self, msg: String) {
+    pub fn fatal(&self, msg: impl ToString) {
         self.log(msg, Level::FATAL)
     }
     pub fn set_level(&mut self, new_level: Level) {
