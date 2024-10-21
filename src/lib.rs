@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+#[cfg(feature = "coloured_output")]
 use ansi_term::Color;
 
 static ROOT: OnceLock<Mutex<Logger>> = OnceLock::new();
@@ -113,17 +114,22 @@ impl ConsoleHandler {
 }
 impl Handler for ConsoleHandler {
     fn log(&self, level: Level, message: String, logger: &Logger) {
-        let col = match level {
-            Level::ALL => Color::White.normal(),
-            Level::DEBUG => Color::Blue.normal(),
-            Level::INFO => Color::Yellow.normal(),
-            Level::SUCCESS => Color::Green.normal(),
-            Level::ERROR => Color::Red.normal(),
-            Level::CRITICAL => Color::Red.italic(),
-            Level::FATAL => Color::Red.bold().underline(),
-            Level::NONE => { return; },
-        };
-        println!("{}", col.paint(format!("{:?} ({}): {}", level, logger.name, message)))
+        #[cfg(feature = "coloured_output")]
+        {
+            let col = match level {
+                Level::ALL => Color::White.normal(),
+                Level::DEBUG => Color::Blue.normal(),
+                Level::INFO => Color::Yellow.normal(),
+                Level::SUCCESS => Color::Green.normal(),
+                Level::ERROR => Color::Red.normal(),
+                Level::CRITICAL => Color::Red.italic(),
+                Level::FATAL => Color::Red.bold().underline(),
+                Level::NONE => { return; },
+            };
+            println!("{}", col.paint(format!("{:?} ({}): {}", level, logger.name, message)))
+        }
+        #[cfg(not(feature = "coloured_output"))]
+        println!("{:?} ({}): {}", level, logger.name, message)
     }
 }
 
