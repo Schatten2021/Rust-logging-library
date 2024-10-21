@@ -1,4 +1,5 @@
-use std::any::Any;
+mod logger;
+
 #[cfg(feature = "coloured_output")]
 use ansi_term::Color;
 use std::collections::HashMap;
@@ -19,28 +20,19 @@ pub enum Level {
     NONE = 7,
 }
 
-
+#[derive(Clone)]
 pub struct Logger {
-    level: Level,
-    handlers: Vec<Arc<Mutex<&'static dyn Handler>>>,
-    name: String,
-    children: HashMap<String, Arc<Mutex<Logger>>>,
+    inner: Arc<Mutex<logger::Logger>>,
 }
 impl Logger {
-    pub fn new(name: impl ToString) -> Arc<Mutex<Logger>> {
-        let root = Logger::get_root();
-        let mut root_lock = root.lock().unwrap();
-        let child = root_lock.get_child(name.to_string());
-        child
+    pub fn new(name: impl ToString) -> Self {
+        Logger {
+            inner: logger::Logger::new(name)
+        }
     }
     pub fn log(&self, msg: impl ToString, level: Level) {
-        if level < self.level {
-            return;
-        }
-        let message = msg.to_string();
-        for handler in &self.handlers {
-            handler.lock().unwrap().log(level.clone(), message.clone(), self)
-        }
+        let locked = self.inner.lock().unwrap();
+        locked.log(msg, level)
     }
     pub fn debug(&self, msg: impl ToString) {
         self.log(msg, Level::DEBUG)
@@ -61,52 +53,16 @@ impl Logger {
         self.log(msg, Level::FATAL)
     }
     pub fn set_level(&mut self, new_level: Level) {
-        self.level = new_level.clone();
-        for child in self.children.values_mut() {
-            child.lock().unwrap().set_level(new_level.clone())
-        }
+        let mut locked = self.inner.lock().unwrap();
+        locked.set_level(new_level)
     }
     pub fn add_handler(&mut self, handler: &'static impl Handler) {
-        self.handlers.push(Arc::new(Mutex::new(handler)));
-        for child in self.children.values_mut() {
-            child.lock().unwrap().add_handler(handler)
-        }
-    }
-}
-impl Logger {
-    fn get_child(&mut self, name: String) -> Arc<Mutex<Logger>> {
-        let parts: Vec<&str> = name.splitn(2, ".").collect();
-        let sub_logger_name = parts[0];
-        if !self.children.contains_key(sub_logger_name) {
-            let sub_logger = Logger {
-                level: self.level.clone(),
-                handlers: self.handlers.clone(),
-                name: self.name.clone() + "." + sub_logger_name,
-                children: HashMap::new(),
-            };
-            self.children.insert(sub_logger_name.to_string(), Arc::new(Mutex::new(sub_logger)));
-        }
-        let next_logger = self.children.get(sub_logger_name).expect("Should have inserted new logger.");
-        if parts.len() == 1 {
-            next_logger.clone()
-        } else {
-            let mut next_logger = next_logger.lock().unwrap();
-            next_logger.get_child(parts[1].to_string())
-        }
-    }
-    fn get_root() -> &'static Mutex<Logger> {
-        ROOT.get_or_init(|| {
-            Mutex::new(Logger {
-                level: Level::NONE,
-                handlers: Vec::new(),
-                name: String::from("root"),
-                children: HashMap::new(),
-            })
-        })
+        let mut locked = self.inner.lock().unwrap();
+        locked.add_handler(handler)
     }
 }
 pub trait Handler: Send + Sync {
-    fn log(&self, level: Level, message: String, logger: &Logger);
+    fn log(&self, level: Level, message: String, logger: String);
 }
 pub const CONSOLE_HANDLER: ConsoleHandler = ConsoleHandler {  };
 
@@ -115,7 +71,7 @@ impl ConsoleHandler {
     pub fn new() -> Self { ConsoleHandler {} }
 }
 impl Handler for ConsoleHandler {
-    fn log(&self, level: Level, message: String, logger: &Logger) {
+    fn log(&self, level: Level, message: String, logger_name: String) {
         #[cfg(feature = "coloured_output")]
         {
             let col = match level {
@@ -128,16 +84,16 @@ impl Handler for ConsoleHandler {
                 Level::FATAL => Color::Red.bold().underline(),
                 Level::NONE => { return; },
             };
-            println!("{}", col.paint(format!("{:?} ({}): {}", level, logger.name, message)))
+            println!("{}", col.paint(format!("{:?} ({}): {}", level, logger_name, message)))
         }
         #[cfg(not(feature = "coloured_output"))]
-        println!("{:?} ({}): {}", level, logger.name, message)
+        println!("{:?} ({}): {}", level, logger_name, message)
     }
 }
 
 pub fn set_level(level: Level) {
-    Logger::get_root().lock().unwrap().set_level(level)
+    logger::set_level(level)
 }
 pub fn add_handler(handler: &'static impl Handler) {
-    Logger::get_root().lock().unwrap().add_handler(handler);
+    logger::add_handler(handler);
 }
