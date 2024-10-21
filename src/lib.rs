@@ -2,10 +2,7 @@ mod logger;
 
 #[cfg(feature = "coloured_output")]
 use ansi_term::Color;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
-
-static ROOT: OnceLock<Mutex<Logger>> = OnceLock::new();
+use std::sync::{Arc, Mutex};
 
 
 #[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
