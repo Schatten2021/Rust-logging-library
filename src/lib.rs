@@ -16,14 +16,17 @@ pub enum Level {
     INFO = 2,
     /// Distinct for messages of success.
     SUCCESS = 3,
+    /// When you want to warn the user but nothing has gone wrong yet.
+    /// Probably a good level to have in production (if you don't let the user see the level).
+    WARN = 4,
     /// For when an error occurs.
-    ERROR = 4,
+    ERROR = 5,
     /// Critical messages that should be logged.
-    CRITICAL = 5,
+    CRITICAL = 6,
     /// When something goes horribly, horribly wrong.
-    FATAL = 6,
+    FATAL = 7,
     /// Log nothing. Should only be used for setting the level of the logger, because the message would always be logged.
-    NONE = 7,
+    NONE = 8,
 }
 
 #[derive(Clone)]
@@ -140,6 +143,27 @@ impl Logger {
         self.log(msg, Level::SUCCESS)
     }
 
+    /// Log a warning. Equal to [log](Logger::log)(msg, [Level::WARN](Level::WARN)).
+    ///
+    /// # Arguments
+    ///
+    /// * `msg`: The success to be logged.
+    ///
+    /// returns: ()
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logging::Level;
+    /// use logging::CONSOLE_HANDLER;
+    /// logging::add_handler(&CONSOLE_HANDLER);
+    /// logging::set_level(Level::ALL);
+    /// let logger = logging::Logger::new("foo");
+    /// logger.success("Hello World");
+    /// ```
+    pub fn warn(&self, msg: String) {
+        self.log(msg, Level::WARN);
+    }
     /// Log an error. Equal to [log](Logger::log)(msg, [Level::ERROR](Level::ERROR)).
     ///
     /// # Arguments
@@ -335,8 +359,9 @@ impl Handler for ConsoleHandler {
                 Level::DEBUG => Color::Blue.normal(),
                 Level::INFO => Color::Yellow.normal(),
                 Level::SUCCESS => Color::Green.normal(),
+                Level::WARN => Color::Red.italic(),
                 Level::ERROR => Color::Red.normal(),
-                Level::CRITICAL => Color::Red.italic(),
+                Level::CRITICAL => Color::Red.bold(),
                 Level::FATAL => Color::Red.bold().underline(),
                 Level::NONE => { return; },
             };
