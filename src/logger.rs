@@ -16,7 +16,7 @@ impl Logger {
         let child = root_lock.get_child(name.to_string());
         child
     }
-    pub fn log(&self, msg: impl ToString, level: Level) {
+    pub(crate) fn log(&self, msg: impl ToString, level: Level) {
         if level < self.level {
             return;
         }
@@ -25,13 +25,13 @@ impl Logger {
             handler.lock().unwrap().log(level.clone(), message.clone(), self.name.clone())
         }
     }
-    pub fn set_level(&mut self, new_level: Level) {
+    pub(crate) fn set_level(&mut self, new_level: Level) {
         self.level = new_level.clone();
         for child in self.children.values_mut() {
             child.lock().unwrap().set_level(new_level.clone())
         }
     }
-    pub fn add_handler(&mut self, handler: &'static impl Handler) {
+    pub(crate) fn add_handler(&mut self, handler: &'static impl Handler) {
         self.handlers.push(Arc::new(Mutex::new(handler)));
         for child in self.children.values_mut() {
             child.lock().unwrap().add_handler(handler)
@@ -70,9 +70,9 @@ impl Logger {
         })
     }
 }
-pub fn set_level(level: Level) {
+pub(crate) fn set_level(level: Level) {
     Logger::get_root().lock().unwrap().set_level(level)
 }
-pub fn add_handler(handler: &'static impl Handler) {
+pub(crate) fn add_handler(handler: &'static impl Handler) {
     Logger::get_root().lock().unwrap().add_handler(handler);
 }
