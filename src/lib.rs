@@ -24,7 +24,7 @@ impl Logger {
     /// # Arguments 
     /// 
     /// * `name`: The name of the logger. 
-    /// Sub-logger can be created with a dot, so that `logging::Logger::new("foo.bar");` is a sub-logger of `logging::Logger::new("foo");`
+    /// Sub-logger can be created with a dot, so that `logging::Logger::new("foo::bar");` is a sub-logger of `logging::Logger::new("foo");`
     /// 
     /// 
     /// returns: Logger 

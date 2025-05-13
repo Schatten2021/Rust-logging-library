@@ -29,7 +29,19 @@ pub const NONE: LogLevel = LogLevel::MAX;
 pub const MAX: LogLevel = LogLevel::MAX;
 pub(crate) static LOG_LEVELS: OnceLock<RwLock<HashMap<LogLevel, Box<str>>>> = OnceLock::new();
 fn _get_log_levels<'a>() -> &'a RwLock<HashMap<LogLevel, Box<str>>> {
-    LOG_LEVELS.get_or_init(|| RwLock::new(HashMap::new()))
+    LOG_LEVELS.get_or_init(|| { 
+        let mut map = HashMap::new();
+        map.insert(MIN, "MIN".into());
+        map.insert(DEBUG, "DEBUG".into());
+        map.insert(INFO, "INFO".into());
+        map.insert(SUCCESS, "SUCCESS".into());
+        map.insert(WARN, "WARN".into());
+        map.insert(ERROR, "ERROR".into());
+        map.insert(CRITICAL, "CRITICAL".into());
+        map.insert(FATAL, "FATAL".into());
+        map.insert(MAX, "MAX".into());
+        RwLock::new(map)
+    })
 }
 pub fn add_level(level: LogLevel, name: String) {
     let mut lock = _get_log_levels().write().expect("Log levels are poisoned");
