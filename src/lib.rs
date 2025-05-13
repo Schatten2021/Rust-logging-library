@@ -329,14 +329,11 @@ pub trait Handler: Send + Sync {
 }
 /// A default implementation of [Handler](Handler).
 /// Logs to the console in a potentially coloured output (if you have the coloured_output feature enabled).
-pub const CONSOLE_HANDLER: ConsoleHandler = ConsoleHandler;
-/// The underlying struct of the [CONSOLE_HANDLER](CONSOLE_HANDLER) const.
-/// Please use [CONSOLE_HANDLER](CONSOLE_HANDLER) and don't use this struct.
 pub struct ConsoleHandler;
 impl Handler for ConsoleHandler {
     fn log(&self, level: LogLevel, message: String, logger_name: String) {
         let level_name = Level::get_level(level).unwrap_or(level.to_string());
-        let log_str = format!("{:?} ({}): {}", level_name, logger_name, message);
+        let log_str = format!("{} ({}): {}", level_name, logger_name, message);
         #[cfg(feature = "coloured_output")]
         let log_str = {
             match level {
