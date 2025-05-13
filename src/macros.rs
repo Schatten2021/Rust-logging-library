@@ -13,7 +13,7 @@ macro_rules! debug {
         $crate::log!($logger => $crate::Level::DEBUG, $($arg)*)
     };
     ($($arg:tt)*) => {
-        $crate::log!($crate::level::DEBUG, $($arg)*)
+        $crate::log!($crate::Level::DEBUG, $($arg)*)
     };
 }
 #[macro_export]
@@ -22,7 +22,7 @@ macro_rules! info {
         $crate::log!($logger => $crate::Level::INFO, $($arg)*)
     };
     ($($arg:tt)*) => {
-        $crate::log!($crate::level::INFO, $($arg)*)
+        $crate::log!($crate::Level::INFO, $($arg)*)
     };
 }
 #[macro_export]
@@ -31,7 +31,7 @@ macro_rules! success {
         $crate::log!($logger => $crate::Level::SUCCESS, $($arg)*)
     };
     ($($arg:tt)*) => {
-        $crate::log!($crate::level::SUCCESS, $($arg)*)
+        $crate::log!($crate::Level::SUCCESS, $($arg)*)
     };
 }
 
@@ -41,7 +41,7 @@ macro_rules! warn {
         $crate::log!($logger => $crate::Level::WARN, $($arg)*)
     };
     ($($arg:tt)*) => {
-        $crate::log!($crate::level::WARN, $($arg)*)
+        $crate::log!($crate::Level::WARN, $($arg)*)
     };
 }
 #[macro_export]
@@ -50,7 +50,7 @@ macro_rules! error {
         $crate::log!($logger => $crate::Level::ERROR, $($arg)*)
     };
     ($($arg:tt)*) => {
-        $crate::log!($crate::level::ERROR, $($arg)*)
+        $crate::log!($crate::Level::ERROR, $($arg)*)
     };
 }
 #[macro_export]
@@ -59,7 +59,7 @@ macro_rules! critical {
         $crate::log!($logger => $crate::Level::CRITICAL, $($arg)*)
     };
     ($($arg:tt)*) => {
-        $crate::log!($crate::level::CRITICAL, $($arg)*)
+        $crate::log!($crate::Level::CRITICAL, $($arg)*)
     };
 }
 #[macro_export]
@@ -68,6 +68,6 @@ macro_rules! fatal {
         $crate::log!($logger => $crate::Level::FATAL, $($arg)*)
     };
     ($($arg:tt)*) => {
-        $crate::log!($crate::level::FATAL, $($arg)*)
+        $crate::log!($crate::Level::FATAL, $($arg)*)
     };
 }
