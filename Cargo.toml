@@ -1,6 +1,6 @@
 [package]
 name = "logging"
-version = "2.0.0"
+version = "2.0.1"
 edition = "2021"
 
 [dependencies]
@@ -9,5 +9,6 @@ ansi_term = { version = "0.12.1", optional = true }
 [features]
 default = ["default_log_console", "std_err", "coloured_output"]
 default_log_console = []
+default_log_all = []
 std_err = []
 coloured_output = ["dep:ansi_term"]

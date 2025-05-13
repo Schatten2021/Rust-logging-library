@@ -1,4 +1,4 @@
-use crate::{Handler, LogLevel, CONSOLE_HANDLER};
+use crate::{Handler, Level, LogLevel, CONSOLE_HANDLER};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
 
@@ -66,7 +66,10 @@ pub(crate) fn get_logger(name: String) -> Arc<RwLock<Logger>> {
 pub(crate) fn get_root<'a>() -> &'a RwLock<Logger> {
     ROOT.get_or_init(|| {
         RwLock::new(Logger {
-            level: LogLevel::MAX,
+            #[cfg(not(feature = "default_log_all"))]
+            level: Level::NONE,
+            #[cfg(feature = "default_log_all")]
+            level: Level::MIN,
             #[cfg(not(feature = "default_log_console"))]
             handlers: vec![],
             #[cfg(feature = "default_log_console")]
