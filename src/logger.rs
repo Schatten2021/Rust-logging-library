@@ -61,7 +61,7 @@ impl Logger {
 }
 pub(crate) fn get_logger(name: String) -> Arc<RwLock<Logger>> {
     get_root().write().expect("Logger is poisoned")
-        .get_child(name)
+        .get_child(format!("::{name}"))
 }
 pub(crate) fn get_root<'a>() -> &'a RwLock<Logger> {
     ROOT.get_or_init(|| {
