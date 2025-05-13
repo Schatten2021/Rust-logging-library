@@ -1,39 +1,22 @@
+// mod logger_old;
 mod logger;
-use std::sync::{Arc, Mutex};
+mod macros;
+#[allow(non_snake_case)]
+pub mod Level;
+
+use std::sync::{Arc, RwLock};
 
 #[cfg(feature = "coloured_output")]
 use ansi_term::Color;
 
+pub type LogLevel = i32;
 
-#[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
-/// All the different logging levels.
-pub enum Level {
-    /// Log everything. Should only be used for setting the level of the logger.
-    ALL = 0,
-    /// Debug message used for debugging only.
-    DEBUG = 1,
-    /// Information that the user should see.
-    INFO = 2,
-    /// Distinct for messages of success.
-    SUCCESS = 3,
-    /// When you want to warn the user but nothing has gone wrong yet.
-    /// Probably a good level to have in production (if you don't let the user see the level).
-    WARN = 4,
-    /// For when an error occurs.
-    ERROR = 5,
-    /// Critical messages that should be logged.
-    CRITICAL = 6,
-    /// When something goes horribly, horribly wrong.
-    FATAL = 7,
-    /// Log nothing. Should only be used for setting the level of the logger, because the message would always be logged.
-    NONE = 8,
-}
 
 #[derive(Clone)]
 /// A logger used for logging messages at different levels.
 /// Loggers are in a hierarchical structure, so sections of loggers can be turned on and off. 
 pub struct Logger {
-    inner: Arc<Mutex<logger::Logger>>,
+    inner: Arc<RwLock<logger::Logger>>,
 }
 impl Logger {
     /// Create a new logger.
@@ -53,7 +36,7 @@ impl Logger {
     /// ```
     pub fn new(name: impl ToString) -> Self {
         Logger {
-            inner: logger::Logger::new(name)
+            inner: logger::get_logger(name.to_string()),
         }
     }
     /// Log a message.
@@ -73,10 +56,10 @@ impl Logger {
     /// logging::add_handler(&CONSOLE_HANDLER);
     /// logging::set_level(Level::ALL);
     /// let logger = logging::Logger::new("foo");
-    /// logger.log("Hello World", Level::INFO);
+    /// logger.log("Hello World".to_string(), Level::INFO);
     /// ```
-    pub fn log(&self, msg: impl ToString, level: Level) {
-        let locked = self.inner.lock().unwrap();
+    pub fn log(&self, msg: String, level: LogLevel) {
+        let locked = self.inner.read().expect("Logger is poisoned");
         locked.log(msg, level)
     }
     /// Debug a message or value. Equal to [log](Logger::log)(msg, [Level::DEBUG](Level::DEBUG)).
@@ -95,9 +78,9 @@ impl Logger {
     /// logging::add_handler(&CONSOLE_HANDLER);
     /// logging::set_level(Level::ALL);
     /// let logger = logging::Logger::new("foo");
-    /// logger.debug("Hello World");
+    /// logger.debug("Hello World".to_string());
     /// ```
-    pub fn debug(&self, msg: impl ToString) {
+    pub fn debug(&self, msg: String) {
         self.log(msg, Level::DEBUG)
     }
     /// Log an information. Equal to [log](Logger::log)(msg, [Level::INFO](Level::INFO)).
@@ -116,9 +99,9 @@ impl Logger {
     /// logging::add_handler(&CONSOLE_HANDLER);
     /// logging::set_level(Level::ALL);
     /// let logger = logging::Logger::new("foo");
-    /// logger.info("Hello World");
+    /// logger.info("Hello World".to_string());
     /// ```
-    pub fn info(&self, msg: impl ToString) {
+    pub fn info(&self, msg: String) {
         self.log(msg, Level::INFO)
     }
     /// Log a success. Equal to [log](Logger::log)(msg, [Level::SUCCESS](Level::SUCCESS)).
@@ -137,9 +120,9 @@ impl Logger {
     /// logging::add_handler(&CONSOLE_HANDLER);
     /// logging::set_level(Level::ALL);
     /// let logger = logging::Logger::new("foo");
-    /// logger.success("Hello World");
+    /// logger.success("Hello World".to_string());
     /// ```
-    pub fn success(&self, msg: impl ToString) {
+    pub fn success(&self, msg: String) {
         self.log(msg, Level::SUCCESS)
     }
 
@@ -159,7 +142,7 @@ impl Logger {
     /// logging::add_handler(&CONSOLE_HANDLER);
     /// logging::set_level(Level::ALL);
     /// let logger = logging::Logger::new("foo");
-    /// logger.success("Hello World");
+    /// logger.success("Hello World".to_string());
     /// ```
     pub fn warn(&self, msg: String) {
         self.log(msg, Level::WARN);
@@ -180,9 +163,9 @@ impl Logger {
     /// logging::add_handler(&CONSOLE_HANDLER);
     /// logging::set_level(Level::ALL);
     /// let logger = logging::Logger::new("foo");
-    /// logger.error("Hello World");
+    /// logger.error("Hello World".to_string());
     /// ```
-    pub fn error(&self, msg: impl ToString) {
+    pub fn error(&self, msg: String) {
         self.log(msg, Level::ERROR)
     }
 
@@ -202,9 +185,9 @@ impl Logger {
     /// logging::add_handler(&CONSOLE_HANDLER);
     /// logging::set_level(Level::ALL);
     /// let logger = logging::Logger::new("foo");
-    /// logger.critical("Hello World");
+    /// logger.critical("Hello World".to_string());
     /// ```
-    pub fn critical(&self, msg: impl ToString) {
+    pub fn critical(&self, msg: String) {
         self.log(msg, Level::CRITICAL)
     }
     /// Log a message when something goes fatally wrong. Equal to [log](Logger::log)(msg, [Level::FATAL](Level::FATAL)).
@@ -223,9 +206,9 @@ impl Logger {
     /// logging::add_handler(&CONSOLE_HANDLER);
     /// logging::set_level(Level::ALL);
     /// let logger = logging::Logger::new("foo");
-    /// logger.fatal("Hello World");
+    /// logger.fatal("Hello World".to_string());
     /// ```
-    pub fn fatal(&self, msg: impl ToString) {
+    pub fn fatal(&self, msg: String) {
         self.log(msg, Level::FATAL)
     }
     /// Set the minimum Level the logger and all children log at.
@@ -245,13 +228,13 @@ impl Logger {
     /// let logger = logging::Logger::new("foo");
     /// logger.set_level(Level::ALL);
     /// // will be logged
-    /// logger.debug("Hello World");
+    /// logger.debug("Hello World".to_string());
     ///
     /// logger.set_level(Level::INFO);
     /// // will not be logged
-    /// logger.debug("Hello World");
+    /// logger.debug("Hello World".to_string());
     /// // will be logged
-    /// logger.info("Hello World");
+    /// logger.info("Hello World".to_string());
     /// ```
     /// ```
     /// use logging::Level;
@@ -261,17 +244,17 @@ impl Logger {
     /// let child = logging::Logger::new("foo.bar");
     /// parent.set_level(Level::INFO);
     /// // will be logged
-    /// child.info("Hello World");
+    /// child.info("Hello World".to_string());
     /// // will not be logged
-    /// child.debug("Hello World");
+    /// child.debug("Hello World".to_string());
     /// child.set_level(Level::DEBUG);
     /// // will be logged
-    /// child.debug("Hello World");
+    /// child.debug("Hello World".to_string());
     /// // will not be logged
-    /// parent.debug("Hello World")
+    /// parent.debug("Hello World".to_string())
     /// ```
-    pub fn set_level(&self, new_level: Level) {
-        let mut locked = self.inner.lock().unwrap();
+    pub fn set_level(&self, new_level: LogLevel) {
+        let mut locked = self.inner.write().expect("Logger is poisoned");
         locked.set_level(new_level)
     }
     /// Add a handler to this logger and all children (similar to [set_level](Logger::set_level)).
@@ -291,19 +274,19 @@ impl Logger {
     /// use logging::CONSOLE_HANDLER;
     ///
     /// logging::set_level(Level::ALL);
-    /// let logger = logging::Logger::new("foo");
+    /// let logger = logging::Logger::new("foo".to_string());
     ///
     /// // will do nothing
-    /// logger.info("This won't print");
+    /// logger.info("This won't print".to_string());
     ///
     /// logging::add_handler(&CONSOLE_HANDLER);
     ///
     /// // now it will print to the console
-    /// logger.info("This will print to the console. Maybe even in a coloured output (if you have that feature enabled).")
+    /// logger.info("This will print to the console. Maybe even in a coloured output (if you have that feature enabled).".to_string())
     /// ```
-    pub fn add_handler(&self, handler: &'static impl Handler) {
-        let mut locked = self.inner.lock().unwrap();
-        locked.add_handler(handler)
+    pub fn add_handler<T: Handler + 'static>(&self, handler: T) {
+        let mut locked = self.inner.write().expect("Logger is poisoned");
+        locked.add_handler(Arc::new(handler))
     }
 }
 /// A handler for loggers.
@@ -331,31 +314,32 @@ pub trait Handler: Send + Sync {
     ///         println!("{} {:?}: {}", logger, level, message);
     ///     }
     /// }
-    /// let logger = Logger::new("foo");
+    /// let logger = Logger::new("foo".to_string());
     /// logger.set_level(Level::ALL);
-    /// 
+    ///
     /// // does nothing
-    /// logger.info("won't log");
-    /// 
+    /// logger.info("won't log".to_string());
+    ///
     /// logger.add_handler(&ConsoleHandler{});
     /// // will log
-    /// logger.info("will print to console");
-    /// 
+    /// logger.info("will print to console".to_string());
+    ///
     /// ```
-    fn log(&self, level: Level, message: String, logger: String);
+    fn log(&self, level: LogLevel, message: String, logger: String);
 }
 /// A default implementation of [Handler](Handler).
 /// Logs to the console in a potentially coloured output (if you have the coloured_output feature enabled).
-pub const CONSOLE_HANDLER: ConsoleHandler = ConsoleHandler {  };
+pub const CONSOLE_HANDLER: ConsoleHandler = ConsoleHandler;
 /// The underlying struct of the [CONSOLE_HANDLER](CONSOLE_HANDLER) const.
 /// Please use [CONSOLE_HANDLER](CONSOLE_HANDLER) and don't use this struct.
-pub struct ConsoleHandler {}
+pub struct ConsoleHandler;
 impl Handler for ConsoleHandler {
-    fn log(&self, level: Level, message: String, logger_name: String) {
+    fn log(&self, level: LogLevel, message: String, logger_name: String) {
+        let level_name = Level::get_level(level).unwrap_or(level.to_string());
+        let log_str = format!("{:?} ({}): {}", level_name, logger_name, message);
         #[cfg(feature = "coloured_output")]
-        {
-            let col = match level {
-                Level::ALL => Color::White.normal(),
+        let log_str = {
+            match level {
                 Level::DEBUG => Color::Blue.normal(),
                 Level::INFO => Color::Yellow.normal(),
                 Level::SUCCESS => Color::Green.normal(),
@@ -363,12 +347,14 @@ impl Handler for ConsoleHandler {
                 Level::ERROR => Color::Red.normal(),
                 Level::CRITICAL => Color::Red.bold(),
                 Level::FATAL => Color::Red.bold().underline(),
-                Level::NONE => { return; },
-            };
-            println!("{}", col.paint(format!("{:?} ({}): {}", level, logger_name, message)))
+                _ => Color::White.normal(),
+            }.paint(log_str)
+        };
+        #[cfg(feature = "std_err")]
+        if level >= Level::ERROR {
+            eprintln!("{}", log_str);
         }
-        #[cfg(not(feature = "coloured_output"))]
-        println!("{:?} ({}): {}", level, logger_name, message)
+        println!("{}", log_str);
     }
 }
 
@@ -388,14 +374,14 @@ impl Handler for ConsoleHandler {
 /// logger.add_handler(&CONSOLE_HANDLER);
 /// logger.set_level(Level::CRITICAL);
 /// // won't log
-/// logger.info("This won't log");
-/// 
+/// logger.info("This won't log".to_string());
+///
 /// logging::set_level(Level::ALL);
 /// // will log.
-/// logger.info("This will log");
+/// logger.info("This will log".to_string());
 /// ```
-pub fn set_level(level: Level) {
-    logger::set_level(level)
+pub fn set_level(level: LogLevel) {
+    logger::get_root().write().expect("Logger poisoned").set_level(level)
 }
 /// Globally add a handler to all loggers.
 /// 
@@ -415,14 +401,14 @@ pub fn set_level(level: Level) {
 /// let logger2 = Logger::new("bar");
 /// // only adds for 'logger'
 /// logger.add_handler(&CONSOLE_HANDLER);
-/// logger.debug("Will log.");
-/// logger2.debug("Won't log.");
-/// 
+/// logger.debug("Will log.".to_string());
+/// logger2.debug("Won't log.".to_string());
+///
 /// // adds it to all
 /// logging::add_handler(&CONSOLE_HANDLER);
-/// logger.debug("Will log twice, as the handler was added twice.");
-/// logger2.debug("Will now also log.");
+/// logger.debug("Will log twice, as the handler was added twice.".to_string());
+/// logger2.debug("Will now also log.".to_string());
 /// ```
-pub fn add_handler(handler: &'static impl Handler) {
-    logger::add_handler(handler);
+pub fn add_handler<T: Handler + 'static>(handler: T) {
+    logger::get_root().write().expect("Logger poisoned").add_handler(Arc::new(handler));
 }

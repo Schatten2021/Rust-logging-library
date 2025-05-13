@@ -1,78 +1,78 @@
+use crate::{Handler, LogLevel, CONSOLE_HANDLER};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
-use crate::{Handler, Level};
+use std::sync::{Arc, OnceLock, RwLock};
 
-static ROOT: OnceLock<Mutex<Logger>> = OnceLock::new();
+static ROOT: OnceLock<RwLock<Logger>> = OnceLock::new();
+
 
 pub(crate) struct Logger {
-    level: Level,    handlers: Vec<Arc<Mutex<&'static dyn Handler>>>,
-    name: String,
-    children: HashMap<String, Arc<Mutex<Self>>>,
+    level: LogLevel,
+    handlers: Vec<Arc<dyn Handler>>,
+    name: Box<str>,
+    children: HashMap<String, Arc<RwLock<Logger>>>,
 }
 impl Logger {
-    pub(crate) fn new(name: impl ToString) -> Arc<Mutex<Self>> {
-        let root = Logger::get_root();
-        let mut root_lock = root.lock().unwrap();
-        let child = root_lock.get_child(name.to_string());
-        child
-    }
-    pub(crate) fn log(&self, msg: impl ToString, level: Level) {
+    pub(crate) fn log(&self, msg: String, level: LogLevel) -> () {
         if level < self.level {
             return;
         }
-        let message = msg.to_string();
         for handler in &self.handlers {
-            handler.lock().unwrap().log(level.clone(), message.clone(), self.name.clone())
+            handler.log(level, msg.clone(), self.name.to_string());
         }
     }
-    pub(crate) fn set_level(&mut self, new_level: Level) {
-        self.level = new_level.clone();
+    pub(crate) fn set_level(&mut self, level: LogLevel) {
+        self.level = level;
         for child in self.children.values_mut() {
-            child.lock().unwrap().set_level(new_level.clone())
+            let mut lock = child.write().expect("Logger is poisoned");
+            lock.set_level(level);
         }
     }
-    pub(crate) fn add_handler(&mut self, handler: &'static impl Handler) {
-        self.handlers.push(Arc::new(Mutex::new(handler)));
+    pub(crate) fn add_handler(&mut self, handler: Arc<dyn Handler>) {
+        self.handlers.push(handler.clone());
         for child in self.children.values_mut() {
-            child.lock().unwrap().add_handler(handler)
+            let mut lock = child.write().expect("Logger is poisoned");
+            lock.add_handler(handler.clone());
         }
+    }
+    fn get_child(&mut self, name: String) -> Arc<RwLock<Self>> {
+        let remaining = &name[self.name.len()..];
+        assert!(remaining.starts_with("::"), "invalid internal name. Logger passed to the wrong sublogger");
+        let sub_name = remaining["::".len()..].split("::").next().expect("invalid name for logger");
+        let sub_logger = match self.children.get(sub_name) {
+            Some(sub_logger) => Arc::clone(sub_logger),
+            None => {
+                let logger = Arc::new(RwLock::new(Self {
+                    level: self.level,
+                    handlers: self.handlers.clone(),
+                    name: format!("{}::{}", self.name, sub_name).into_boxed_str(),
+                    children: HashMap::new(),
+                }));
+                self.children.insert(sub_name.to_string(), Arc::clone(&logger));
+                logger
+            }
+        };
+        if sub_name.len() + "::".len() == remaining.len() {
+            // this is the final logger
+            return sub_logger;
+        }
+        let mut lock = sub_logger.write().expect("Logger is poisoned");
+        lock.get_child(name)
     }
 }
-impl Logger {
-    fn get_child(&mut self, name: String) -> Arc<Mutex<Self>> {
-        let parts: Vec<&str> = name.splitn(2, ".").collect();
-        let sub_logger_name = parts[0];
-        if !self.children.contains_key(sub_logger_name) {
-            let sub_logger = Logger {
-                level: self.level.clone(),
-                handlers: self.handlers.clone(),
-                name: self.name.clone() + "." + sub_logger_name,
-                children: HashMap::new(),
-            };
-            self.children.insert(sub_logger_name.to_string(), Arc::new(Mutex::new(sub_logger)));
-        }
-        let next_logger = self.children.get(sub_logger_name).expect("Should have inserted new logger.");
-        if parts.len() == 1 {
-            next_logger.clone()
-        } else {
-            let mut next_logger = next_logger.lock().unwrap();
-            next_logger.get_child(parts[1].to_string())
-        }
-    }
-    fn get_root() -> &'static Mutex<Self> {
-        ROOT.get_or_init(|| {
-            Mutex::new(Logger {
-                level: Level::NONE,
-                handlers: Vec::new(),
-                name: String::from("root"),
-                children: HashMap::new(),
-            })
+pub(crate) fn get_logger(name: String) -> Arc<RwLock<Logger>> {
+    get_root().write().expect("Logger is poisoned")
+        .get_child(name)
+}
+pub(crate) fn get_root<'a>() -> &'a RwLock<Logger> {
+    ROOT.get_or_init(|| {
+        RwLock::new(Logger {
+            level: LogLevel::MAX,
+            #[cfg(not(feature = "default_log_console"))]
+            handlers: vec![],
+            #[cfg(feature = "default_log_console")]
+            handlers: vec![Arc::new(CONSOLE_HANDLER)],
+            name: Box::from(""),
+            children: HashMap::new(),
         })
-    }
-}
-pub(crate) fn set_level(level: Level) {
-    Logger::get_root().lock().unwrap().set_level(level)
-}
-pub(crate) fn add_handler(handler: &'static impl Handler) {
-    Logger::get_root().lock().unwrap().add_handler(handler);
+    })
 }
